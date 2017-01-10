@@ -1,4 +1,4 @@
-package dao
+package main
 
 import (
 	. "github.com/jinzhu/gorm"
