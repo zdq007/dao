@@ -4,6 +4,8 @@ import (
 	. "github.com/jinzhu/gorm"
 	"github.com/Sirupsen/logrus"
 	"database/sql"
+	"encoding/json"
+	"github.com/gogap/errors"
 )
 
 type Dao struct {
@@ -18,13 +20,36 @@ func (self *Dao) Init()  {
 	logrus.Info("Init database config!")
 }
 
-/**
-	产生一个数据库操作对象
- */
-func GenerateDB() (dao * Dao){
+//@title  产生一个数据库操作对象
+//@return 返回Dao指针
+func GenerateDB(args ... interface{}) (dao * Dao,err error){
+	len := len(args)
+	if len<1{
+		return nil,errors.New("参数个数不对\n 至少传入数据库连接url( user:pwd@tcp(127.0.0.1)/dbname?charset=utf8 )")
+	}
 	dao = new(Dao)
+	DB, err := Open("mysql",string(args[0]))
+	if err != nil {
+		logrus.Error("打开数据库异常：", err)
+	}
 
+	dao.DB = &DB;
 
+	//初始连接数
+	if len >1 {
+		DB.DB().SetMaxIdleConns(args[1].(int))
+	}
+	//最大连接数
+	if len >2 {
+		DB.DB().SetMaxOpenConns(args[2].(int))
+	}
+	//显示sql
+	if len >3 {
+		DB.LogMode(args[2].(bool))
+	}
+
+	// Disable table name's pluralization
+	DB.SingularTable(true)
 
 	return
 }
@@ -94,7 +119,7 @@ func (self *Dao) Save(sql string, arges ...interface{}) (int64, error) {
 	return id, nil
 }
 
-//查找返回JSON数组 [{},{},{}] 因为mysql库查询返回的大部分类型都是[]BYTE  所以不能通过类型判断 只能由用户指定类型
+//@title  查找返回JSON数组 [{},{},{}] 因为mysql库查询返回的大部分类型都是[]BYTE  所以不能通过类型判断 只能由用户指定类型
 func (self *Dao) QueryArray(sqlstr string, args ...interface{}) ([]interface{}, error) {
 	rows, err := self.Raw(sqlstr, args...).Rows()
 	defer rows.Close()
@@ -117,12 +142,11 @@ func (self *Dao) QueryArray(sqlstr string, args ...interface{}) ([]interface{}, 
 				for i, col := range values {
 					record[columns[i]] = col
 					if col != nil {
-						record[columns[i]] = col
+						record[columns[i]] = string(col)
 					}else{
 						record[columns[i]] = nil
 					}
 				}
-
 				result = append(result, record)
 			}
 
@@ -130,4 +154,17 @@ func (self *Dao) QueryArray(sqlstr string, args ...interface{}) ([]interface{}, 
 		}
 	}
 	return nil, err
+}
+//@title  查找返回JSON数组
+//@return 字符串,异常
+func (self *Dao) QueryJsonArray(sqlstr string, args ...interface{}) (string, error){
+	arr,err := self.QueryArray(sqlstr,args...)
+	if err!= nil{
+		return  "",err
+	}
+	json, err := json.Marshal(arr)
+	if err != nil {
+		return "", err
+	}
+	return string(json), nil
 }
