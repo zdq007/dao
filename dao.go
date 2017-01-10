@@ -1,4 +1,4 @@
-package main
+package dao
 
 import (
 	. "github.com/jinzhu/gorm"
@@ -28,28 +28,28 @@ func GenerateDB(args ... interface{}) (dao * Dao,err error){
 		return nil,errors.New("参数个数不对\n 至少传入数据库连接url( user:pwd@tcp(127.0.0.1)/dbname?charset=utf8 )")
 	}
 	dao = new(Dao)
-	DB, err := Open("mysql",string(args[0]))
+	grom, err := Open("mysql",args[0].(string))
 	if err != nil {
 		logrus.Error("打开数据库异常：", err)
 	}
 
-	dao.DB = &DB;
+	dao.DB = &grom;
 
 	//初始连接数
 	if len >1 {
-		DB.DB().SetMaxIdleConns(args[1].(int))
+		grom.DB().SetMaxIdleConns(args[1].(int))
 	}
 	//最大连接数
 	if len >2 {
-		DB.DB().SetMaxOpenConns(args[2].(int))
+		grom.DB().SetMaxOpenConns(args[2].(int))
 	}
 	//显示sql
 	if len >3 {
-		DB.LogMode(args[2].(bool))
+		grom.LogMode(args[2].(bool))
 	}
 
 	// Disable table name's pluralization
-	DB.SingularTable(true)
+	grom.SingularTable(true)
 
 	return
 }
