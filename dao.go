@@ -1,11 +1,12 @@
 package dao
 
 import (
-	. "github.com/jinzhu/gorm"
-	"github.com/Sirupsen/logrus"
 	"database/sql"
 	"encoding/json"
+	"github.com/Sirupsen/logrus"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gogap/errors"
+	. "github.com/jinzhu/gorm"
 )
 
 type Dao struct {
@@ -16,35 +17,35 @@ type Dao struct {
 	dbname string
 }
 
-func (self *Dao) Init()  {
+func (self *Dao) Init() {
 	logrus.Info("Init database config!")
 }
 
 //@title  产生一个数据库操作对象
 //@return 返回Dao指针
-func GenerateDB(args ... interface{}) (dao * Dao,err error){
+func GenerateDB(args ...interface{}) (dao *Dao, err error) {
 	len := len(args)
-	if len<1{
-		return nil,errors.New("参数个数不对\n 至少传入数据库连接url( user:pwd@tcp(127.0.0.1)/dbname?charset=utf8 )")
+	if len < 1 {
+		return nil, errors.New("参数个数不对\n 至少传入数据库连接url( user:pwd@tcp(127.0.0.1)/dbname?charset=utf8 )")
 	}
 	dao = new(Dao)
-	grom, err := Open("mysql",args[0].(string))
+	grom, err := Open("mysql", args[0].(string))
 	if err != nil {
 		logrus.Error("打开数据库异常：", err)
 	}
 
-	dao.DB = &grom;
+	dao.DB = &grom
 
 	//初始连接数
-	if len >1 {
+	if len > 1 {
 		grom.DB().SetMaxIdleConns(args[1].(int))
 	}
 	//最大连接数
-	if len >2 {
+	if len > 2 {
 		grom.DB().SetMaxOpenConns(args[2].(int))
 	}
 	//显示sql
-	if len >3 {
+	if len > 3 {
 		grom.LogMode(args[2].(bool))
 	}
 
@@ -59,7 +60,6 @@ func (self *Dao) QueryOneRowCallback(backfn func(row *sql.Row), sql string, args
 	row := self.Raw(sql, args...).Row()
 	backfn(row)
 }
-
 
 //查询一条记录
 func (self *Dao) QueryOneRow(sql string, args ...interface{}) *sql.Row {
@@ -86,7 +86,6 @@ func (self *Dao) QueryRowsCallback(backfn func(rows *sql.Rows), sql string, args
 func (self *Dao) QueryRows(sql string, args ...interface{}) (*sql.Rows, error) {
 	return self.Raw(sql, args...).Rows()
 }
-
 
 //统计记录数
 func (self *Dao) QueryCount(sql string, args ...interface{}) int64 {
@@ -143,7 +142,7 @@ func (self *Dao) QueryArray(sqlstr string, args ...interface{}) ([]interface{}, 
 					record[columns[i]] = col
 					if col != nil {
 						record[columns[i]] = string(col)
-					}else{
+					} else {
 						record[columns[i]] = nil
 					}
 				}
@@ -155,12 +154,13 @@ func (self *Dao) QueryArray(sqlstr string, args ...interface{}) ([]interface{}, 
 	}
 	return nil, err
 }
+
 //@title  查找返回JSON数组
 //@return 字符串,异常
-func (self *Dao) QueryJsonArray(sqlstr string, args ...interface{}) (string, error){
-	arr,err := self.QueryArray(sqlstr,args...)
-	if err!= nil{
-		return  "",err
+func (self *Dao) QueryJsonArray(sqlstr string, args ...interface{}) (string, error) {
+	arr, err := self.QueryArray(sqlstr, args...)
+	if err != nil {
+		return "", err
 	}
 	json, err := json.Marshal(arr)
 	if err != nil {
