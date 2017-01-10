@@ -34,7 +34,7 @@ func GenerateDB(args ...interface{}) (dao *Dao, err error) {
 		logrus.Error("打开数据库异常：", err)
 	}
 
-	dao.DB = &grom
+	dao.DB = grom
 
 	//初始连接数
 	if len > 1 {
