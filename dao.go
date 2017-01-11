@@ -7,6 +7,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gogap/errors"
 	. "github.com/jinzhu/gorm"
+	"regexp"
+	"fmt"
 )
 
 type Dao struct {
@@ -167,4 +169,26 @@ func (self *Dao) QueryJsonArray(sqlstr string, args ...interface{}) (string, err
 		return "", err
 	}
 	return string(json), nil
+}
+
+var(
+	//初始sql替换为分页sql
+	countReg,_ = regexp.Compile(`(?i)^(select)[\w\W]+(from)\s`)
+)
+//@title 分页查询
+//@param
+//@return 结果,总记录数,异常
+func (self *Dao) QueryPageList(start,offset int ,sqlstr string, args ...interface{}) (list []interface{},count int,err error) {
+	countSql := countReg.ReplaceAllString(sqlstr,"$1 count(*) $2 ")
+	fmt.Println(countSql)
+	count = self.QueryCount(countSql,args...)
+	fmt.Println(count)
+	if count >0 {
+		//查询结果
+		list,err = self.QueryArray(sqlstr + " limit ?,?" ,append(args,start,offset)...)
+		return
+	}else{
+		list = make([]interface{},0,0)
+		return
+	}
 }
