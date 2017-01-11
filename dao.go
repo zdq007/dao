@@ -178,7 +178,7 @@ var(
 //@title 分页查询
 //@param
 //@return 结果,总记录数,异常
-func (self *Dao) QueryPageList(start,offset int ,sqlstr string, args ...interface{}) (list []interface{},count int,err error) {
+func (self *Dao) QueryPageList(start,offset int ,sqlstr string, args ...interface{}) (list []interface{},count int64,err error) {
 	countSql := countReg.ReplaceAllString(sqlstr,"$1 count(*) $2 ")
 	fmt.Println(countSql)
 	count = self.QueryCount(countSql,args...)
