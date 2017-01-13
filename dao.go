@@ -46,7 +46,7 @@ func GenerateDB(args ...interface{}) (dao *Dao, err error) {
 	}
 	//显示sql
 	if len > 3 {
-		grom.LogMode(args[2].(bool))
+		grom.LogMode(args[3].(bool))
 	}
 
 	// Disable table name's pluralization
