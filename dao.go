@@ -3,20 +3,17 @@ package dao
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/Sirupsen/logrus"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gogap/errors"
 	. "github.com/jinzhu/gorm"
 	"regexp"
-	"fmt"
 )
 
 type Dao struct {
 	*DB
-	server string
-	user   string
-	pwd    string
-	dbname string
+	DBUrl string
 }
 
 func (self *Dao) Init() {
@@ -31,7 +28,8 @@ func GenerateDB(args ...interface{}) (dao *Dao, err error) {
 		return nil, errors.New("参数个数不对\n 至少传入数据库连接url( user:pwd@tcp(127.0.0.1)/dbname?charset=utf8 )")
 	}
 	dao = new(Dao)
-	grom, err := Open("mysql", args[0].(string))
+	dao.DBUrl = args[0].(string)
+	grom, err := Open("mysql", dao.DBUrl)
 	if err != nil {
 		logrus.Error("打开数据库异常：", err)
 	}
@@ -121,10 +119,10 @@ func (self *Dao) Save(sql string, arges ...interface{}) (int64, error) {
 }
 
 //@title  查找返回JSON数组 [{},{},{}] 因为mysql库查询返回的大部分类型都是[]BYTE  所以不能通过类型判断 只能由用户指定类型
-func (self *Dao) QueryArray(sqlstr string, args ...interface{}) ([]interface{}, error) {
+func (self *Dao) QueryArray(sqlstr string, args ...interface{}) (result []interface{}, err error) {
 	rows, err := self.Raw(sqlstr, args...).Rows()
-	defer rows.Close()
 	if err == nil {
+		defer rows.Close()
 		columns, err := rows.Columns()
 		if err == nil {
 			values := make([]sql.RawBytes, len(columns)) //sql.RawBytes
@@ -132,7 +130,7 @@ func (self *Dao) QueryArray(sqlstr string, args ...interface{}) ([]interface{}, 
 			for i := range values {
 				scanArgs[i] = &values[i]
 			}
-			result := make([]interface{}, 0)
+			result = make([]interface{}, 0)
 			for rows.Next() {
 				err = rows.Scan(scanArgs...)
 				if err != nil {
@@ -150,11 +148,9 @@ func (self *Dao) QueryArray(sqlstr string, args ...interface{}) ([]interface{}, 
 				}
 				result = append(result, record)
 			}
-
-			return result, nil
 		}
 	}
-	return nil, err
+	return
 }
 
 //@title  查找返回JSON数组
@@ -171,24 +167,25 @@ func (self *Dao) QueryJsonArray(sqlstr string, args ...interface{}) (string, err
 	return string(json), nil
 }
 
-var(
-	//初始sql替换为分页sql
-	countReg,_ = regexp.Compile(`(?i)^(select)[\w\W]+(from)\s`)
+var (
+	//初始sql替换为记录统计sql的正则匹配
+	countReg, _ = regexp.Compile(`(?i)^(select)[\w\W]+(from)\s`)
 )
+
 //@title 分页查询
 //@param
 //@return 结果,总记录数,异常
-func (self *Dao) QueryPageList(start,offset int ,sqlstr string, args ...interface{}) (list []interface{},count int64,err error) {
-	countSql := countReg.ReplaceAllString(sqlstr,"$1 count(*) $2 ")
+func (self *Dao) QueryPageList(start, offset int, sqlstr string, args ...interface{}) (list []interface{}, count int64, err error) {
+	countSql := countReg.ReplaceAllString(sqlstr, "$1 count(*) $2 ")
 	fmt.Println(countSql)
-	count = self.QueryCount(countSql,args...)
-	fmt.Println(count)
-	if count >0 {
+	count = self.QueryCount(countSql, args...)
+	fmt.Println("count: ", count)
+	if count > 0 {
 		//查询结果
-		list,err = self.QueryArray(sqlstr + " limit ?,?" ,append(args,start,offset)...)
+		list, err = self.QueryArray(sqlstr+" limit ?,?", append(args, start, offset)...)
 		return
-	}else{
-		list = make([]interface{},0,0)
+	} else {
+		list = make([]interface{}, 0, 0)
 		return
 	}
 }
